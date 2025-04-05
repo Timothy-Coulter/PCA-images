@@ -1,23 +1,38 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/anaconda
 {
-	"name": "Anaconda (Python 3)",
-	"build": { 
-		"context": "..",
+	"name": "Data Science (Python 3, TF, PyTorch, GPU)",
+	"build": {
+		"context": "..", // Assumes devcontainer.json is in .devcontainer folder relative to workspace root
 		"dockerfile": "Dockerfile"
-	}
+	},
+
+	// Set the remote user to the non-root user created in the Dockerfile
+	"remoteUser": "vscode",
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// "forwardPorts": [],
+	// "forwardPorts": [8888], // Example: Forward Jupyter port
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "python --version",
+	// Optional: Verify GPU detection for TensorFlow and PyTorch
+	"postCreateCommand": "python -c \"import tensorflow as tf; print('TensorFlow GPU devices:', tf.config.list_physical_devices('GPU')); import torch; print('PyTorch CUDA available:', torch.cuda.is_available())\"",
 
 	// Configure tool-specific properties.
-	// "customizations": {},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"ms-toolsai.jupyter",
+				"ms-python.vscode-pylance",
+				"njpwerner.autodocstring",
+				"donjayamanne.githistory",
+				"eamodio.gitlens",
+				"ms-azuretools.vscode-docker",
+				"RooVeterinaryInc.roo-cline"
+			]
+		}
+	}
 
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "root"
