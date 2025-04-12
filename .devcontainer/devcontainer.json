@@ -1,39 +1,63 @@
 {
-	"name": "Data Science (Python 3, TF, PyTorch, GPU)",
+	"name": "Data Science GPU Environment",
 	"build": {
-		"context": "..", // Assumes devcontainer.json is in .devcontainer folder relative to workspace root
-		"dockerfile": "Dockerfile"
+		"dockerfile": "Dockerfile",
+		"context": "..",
+		"args": {}
 	},
-
-	// Set the remote user to the non-root user created in the Dockerfile
-	"remoteUser": "vscode",
-
-	// Features to add to the dev container. More info: https://containers.dev/features.
-	// "features": {},
-
-	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// "forwardPorts": [8888], // Example: Forward Jupyter port
-
-	// Use 'postCreateCommand' to run commands after the container is created.
-	// Optional: Verify GPU detection for TensorFlow and PyTorch
-	"postCreateCommand": "python -c \"import tensorflow as tf; print('TensorFlow GPU devices:', tf.config.list_physical_devices('GPU')); import torch; print('PyTorch CUDA available:', torch.cuda.is_available())\"",
-
-	// Configure tool-specific properties.
+	"runArgs": [
+		// Comment out the GPU support temporarily to test if container builds
+		// "--gpus=all"
+	],
 	"customizations": {
 		"vscode": {
 			"extensions": [
 				"ms-python.python",
-				"ms-toolsai.jupyter",
 				"ms-python.vscode-pylance",
+				"ms-toolsai.jupyter",
+				"ms-toolsai.jupyter-keymap",
+				"ms-toolsai.jupyter-renderers",
+				"ms-toolsai.vscode-jupyter-cell-tags",
+				"ms-toolsai.vscode-jupyter-slideshow",
+				"donjayamanne.python-extension-pack",
+				"kevinrose.vsc-python-indent",
 				"njpwerner.autodocstring",
-				"donjayamanne.githistory",
-				"eamodio.gitlens",
+				"ms-python.black-formatter",
+				"magicstack.magicpython",
+				"yzhang.markdown-all-in-one",
+				"bierner.markdown-preview-github-styles",
+				"github.vscode-github-actions",
 				"ms-azuretools.vscode-docker",
-				"RooVeterinaryInc.roo-cline"
-			]
+				"tamasfe.even-better-toml",
+				"redhat.vscode-yaml",
+				"eamodio.gitlens",
+				"ms-vsliveshare.vsliveshare",
+				"gruntfuggly.todo-tree"
+			],
+			"settings": {
+				"python.defaultInterpreterPath": "/usr/bin/python3",
+				"python.linting.enabled": true,
+				"python.linting.pylintEnabled": true,
+				"python.formatting.provider": "black",
+				"editor.formatOnSave": true,
+				"editor.rulers": [88],
+				"jupyter.alwaysTrustNotebooks": true,
+				"python.analysis.typeCheckingMode": "basic"
+			}
 		}
+	},
+	"forwardPorts": [8888],
+	"postCreateCommand": "pip install -e .",
+	// Comment out the next line to run as root instead
+	"remoteUser": "vscode",
+	"features": {
+		"ghcr.io/devcontainers/features/git:1": {},
+		"ghcr.io/devcontainers/features/github-cli:1": {}
+	},
+	"mounts": [
+		"source=${localWorkspaceFolder}/data,target=/workspace/data,type=bind,consistency=cached"
+	],
+	"remoteEnv": {
+		"PYTHONPATH": "${containerWorkspaceFolder}"
 	}
-
-	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-	// "remoteUser": "root"
 }

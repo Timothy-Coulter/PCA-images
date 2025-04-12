@@ -1,74 +1,110 @@
-# Use an NVIDIA CUDA base image with Ubuntu 22.04 and CUDA 12.1
-# Check NVIDIA's NGC catalog or Docker Hub for the latest appropriate tags
-FROM nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04
+FROM ubuntu:24.04
 
-# Set environment variables to prevent interactive prompts during installation
+# Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
-ENV SHELL=/bin/bash
-ENV CONDA_DIR /opt/conda
-ENV PATH $CONDA_DIR/bin:$PATH
-ENV NB_USER vscode
-ENV NB_UID 1000
-ENV HOME /home/$NB_USER
-ENV NB_GID 100
 
-# Create a non-root user 'vscode' and grant necessary permissions
-RUN groupadd --gid $NB_GID $NB_USER && \
-    useradd --uid $NB_UID --gid $NB_GID --shell /bin/bash --create-home $NB_USER && \
-    mkdir -p $CONDA_DIR && \
-    chown -R $NB_UID:$NB_GID $CONDA_DIR && \
-    mkdir -p /sudoers.d && \
-    echo $NB_USER ALL=\(root\) NOPASSWD:ALL > /sudoers.d/$NB_USER && \
-    chmod 0440 /sudoers.d/$NB_USER
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    sudo \
+# Install essential packages
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
     wget \
-    bzip2 \
+    git \
+    vim \
+    software-properties-common \
     ca-certificates \
+    gnupg \
+    python3 \
+    python3-pip \
+    python3-dev \
+    python3-venv \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
-    libxext6 \
     libxrender1 \
-    git \
-    curl \
-    unzip \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    libxext6 \
+    sudo \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Switch to the non-root user
-USER $NB_UID
+# Setup for NVIDIA CUDA toolkit - temporarily disabled for testing
+# RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb && \
+#     dpkg -i cuda-keyring_1.1-1_all.deb && \
+#     rm cuda-keyring_1.1-1_all.deb && \
+#     apt-get update && apt-get install -y \
+#     cuda-toolkit-11-8 \
+#     && apt-get clean \
+#     && rm -rf /var/lib/apt/lists/*
 
-# Install Anaconda
-WORKDIR /tmp
-RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && \
-    bash ./miniconda.sh -b -p $CONDA_DIR && \
-    rm miniconda.sh && \
-    $CONDA_DIR/bin/conda init bash && \
-    # Temporarily switch back to root to fix permissions potentially changed by conda init
-    sudo chown -R $NB_UID:$NB_GID $HOME
+# Set CUDA environment variables - temporarily disabled for testing
+# ENV CUDA_HOME=/usr/local/cuda
+# ENV PATH=${CUDA_HOME}/bin:${PATH}
+# ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
 
-# Activate conda environment and install packages
-# Using pip within the conda environment for TF and PyTorch GPU often works well
-# Ensure compatibility between CUDA version (12.1), cuDNN (8), TF, and PyTorch
-RUN echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> $HOME/.bashrc && \
-    echo "conda activate base" >> $HOME/.bashrc && \
-    conda install -y python=3.10 jupyterlab numpy pandas scikit-learn matplotlib seaborn opencv pillow && \
-    # Install PyTorch with CUDA 12.1 support (check official PyTorch website for the correct command for your CUDA version)
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 && \
-    # Install TensorFlow with GPU support (requires CUDA and cuDNN compatible versions)
-    # The '[and-cuda]' variant often helps pull necessary components.
-    pip install tensorflow[and-cuda] && \
-    # Install other useful libraries
-    pip install requests tqdm kaggle fiftyone && \
-    # Clean up conda cache
-    conda clean -afy
+# Use system Python instead of Conda
+RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3.10-venv \
+    python3.10-dev \
+    python3-pip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set back to the default working directory
-WORKDIR $HOME
+# Set Python 3.10 as default
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1 && \
+    update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
 
-# Expose Jupyter port if needed (optional)
-# EXPOSE 8888
+# Ensure pip is up to date
+RUN python3 -m pip install --upgrade pip
 
-# Default command (optional, can be overridden in devcontainer.json)
-# CMD ["/bin/bash"]
+# Install TensorFlow (CPU version for testing)
+RUN pip install tensorflow==2.15.*
+
+# Install PyTorch (CPU version for testing)
+RUN pip install torch==2.1.* torchvision==0.16.* torchaudio==2.1.*
+
+# Install Jupyter and essential data science packages
+RUN pip install jupyter pandas numpy matplotlib seaborn scikit-learn scipy statsmodels 
+
+# Install visualization libraries
+RUN pip install plotly dash bokeh altair
+
+# Install data handling libraries
+RUN pip install dask pyarrow h5py joblib pyyaml tqdm 
+
+# Install ML libraries and tools
+RUN pip install xgboost lightgbm catboost optuna hyperopt mlflow wandb 
+
+# Install deep learning extensions
+RUN pip install transformers datasets huggingface_hub tensorflow-datasets keras-cv keras-nlp
+
+# Install useful development tools
+RUN pip install black flake8 pylint pytest ipywidgets jupyterlab
+
+# Create a non-root user matching the remoteUser from devcontainer.json
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
+
+# Set up environment for non-root user
+RUN mkdir -p /home/$USERNAME/.cache/pip && \
+    chown -R $USERNAME:$USERNAME /home/$USERNAME/.cache/pip
+
+# Setup Python for user
+RUN echo "export PATH=\$PATH:\$HOME/.local/bin" >> /home/$USERNAME/.bashrc && \
+    chown $USERNAME:$USERNAME /home/$USERNAME/.bashrc
+
+# Clean up unnecessary cache files
+RUN pip cache purge
+
+WORKDIR /workspace
+
+# Reset environment variable
+ENV DEBIAN_FRONTEND=dialog
+
+# Set default shell to bash
+SHELL ["/bin/bash", "-c"]
